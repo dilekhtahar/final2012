@@ -1,0 +1,29 @@
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+	xmlns:ui="http://java.sun.com/jsf/facelets"
+	template="/templates/eboats-template.xhtml"
+	xmlns:h="http://java.sun.com/jsf/html"
+	xmlns:f="http://java.sun.com/jsf/core">
+	<ui:define name="title">
+  Welcome to eboats!
+</ui:define>
+
+	<ui:define name="header">
+		<ui:include src="/snippets/header.xhtml" />
+	</ui:define>
+
+	<ui:define name="body">
+		<h1>JSF 2.0 + JDBC Example</h1>
+
+	<h:dataTable var="programmer" value="#{company1.cities}"
+		border="1">
+		<h:column>#{programmer.name}</h:column>
+		<h:column>#{programmer.id}</h:column>
+	</h:dataTable>
+
+
+	</ui:define>
+
+	<ui:define name="footer">
+		<ui:include src="/snippets/footer-no-home.xhtml" />
+	</ui:define>
+</ui:composition>
