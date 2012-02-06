@@ -2,7 +2,7 @@
 	xmlns:ui="http://java.sun.com/jsf/facelets"
 	xmlns:h="http://java.sun.com/jsf/html"
 	xmlns:f="http://java.sun.com/jsf/core"
-	template="/templates/eboats-template.xhtml">
+	template="/templates/mainTemplate.xhtml">
 
 	<ui:define name="title">
   Welcome to our app.
@@ -11,18 +11,45 @@
 	<ui:define name="header">
 		<ui:include src="/snippets/header.xhtml" />
 	</ui:define>
-
+	<ui:define name="menu"></ui:define>
 	<ui:define name="body">
-		<h:form>
-		<p />
-		<img src="./images/yacht.jpg" width="240" height="367" align="right"
-			alt="Base-model yacht" />
-Looking for a hole in the water into which to pour your money?
-You've come to the right place! We offer a wide selection of
-reasonably priced boats for everyday use.
-		<h:commandButton value="Build rdf triples." type="submit" onclick="alert(1);" action="#{welcome.buildTriples}" />
+		<h:form id="welcomeForm">
+			<p />
+			<h:panelGroup layout="block">
+				<h:panelGroup id="leftPanel" layout="block"
+					style="float: left; width: 40%">
+					<h:panelGroup layout="block"
+						style="margin-right:auto; margin-left:auto; width:90%;">
+						<h:inputTextarea id="sqlQuery" cols="30" rows="10"
+							value="#{welcome.sqlQuery}"
+							style="resize:none; width:100%; height:300px;" />
+					</h:panelGroup>
+				</h:panelGroup>
+				<h:panelGroup id="centerPanel" layout="block"
+					style="width:20%; float:left;">
+					<h:commandButton value="SPARQLize" onclick=""
+						action="#{welcome.sparqlize}">
+						<f:ajax execute="sqlQuery" render="sparqlQuery" />
+					</h:commandButton>
+					<br />
+					<br />
+					<h:commandButton value="SparqlQUERYLize" type="submit" onclick=""
+						action="#{welcome.queryEndpoint}" />
+				</h:panelGroup>
+				<h:panelGroup id="rightPanel" layout="block"
+					style="float: right; width: 40%">
+					<h:panelGroup layout="block"
+						style="margin-right:auto; margin-left:auto; width:90%;">
+						<h:inputTextarea id="sparqlQuery" cols="30" rows="10"
+							value="#{welcome.sparqlQuery}"
+							style="resize:none; width:100%; height:300px;" />
+					</h:panelGroup>
+				</h:panelGroup>
+			</h:panelGroup>
+			<br />
 		</h:form>
-		</ui:define>
+	</ui:define>
+
 	<ui:define name="footer">
 		<ui:include src="/snippets/footer-no-home.xhtml" />
 	</ui:define>
