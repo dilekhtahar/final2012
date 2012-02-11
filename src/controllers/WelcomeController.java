@@ -3,7 +3,7 @@ package controllers;
 public class WelcomeController {
 
 	public String sparqlize(String sqlQuery) {
-		// TODO Auto-generated method stub
+		// TODO
 		return "HERE SPARQL QUERY";
 	}
 
