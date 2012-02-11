@@ -14,6 +14,7 @@ import gudusoft.gsqlparser.nodes.TWhereClause;
 import gudusoft.gsqlparser.stmt.TSelectSqlStatement;
 
 public abstract class SELECTStatementProcessor {
+	// Constants
 	public static String VALID = "VALID QUERY";
 	public static String INVALID = "INVALID QUERY";
 
@@ -107,13 +108,33 @@ public abstract class SELECTStatementProcessor {
 			} else if (true) {
 				return "TRU";
 			}
-			return "";
 		} else {
 			return INVALID + ": " + sqlparser.getErrormessage();
 		}
+
+		return "Nothing";
 	}
 
 	private static String simpleLightSelect(TSelectSqlStatement select) {
+		// PREFIXES PART
+		String SPARQLPrefixes = "";
+
+		for (int i = 0; i < select.tables.size(); i++) {
+			if (SQL2SPARQLConsts.NAMESPACES.containsKey(select.tables.getElement(i)
+					.toString())) {
+				SPARQLPrefixes += "PREFIX "
+						+ select.tables.getElement(i).toString()
+						+ " : <"
+						+ SQL2SPARQLConsts.NAMESPACES.get(select.tables.getElement(i)
+								.toString()) + ">\n";
+			} else {
+				SPARQLPrefixes += "PREFIX "
+						+ select.tables.getElement(i).toString() + ": <"
+						+ SQL2SPARQLConsts.NAMESPACES.get(SQL2SPARQLConsts.DEFAULT_NS) + "/"
+						+ select.tables.getElement(i).toString() + ">\n";
+			}
+		}
+		// SELECT PART
 		String SPARQLSelect = "SELECT";
 		String SPARQLWhere = "\nWHERE{";
 
@@ -162,8 +183,8 @@ public abstract class SELECTStatementProcessor {
 			SPARQLLimit += "\n"
 					+ ((TLimitClause) select.getLimitClause()).toString();
 		}
-		String SPARQLQuery = SPARQLSelect + SPARQLWhere + SPARQLGroubBy
-				+ SPARQLOrderBy + SPARQLLimit;
+		String SPARQLQuery = SPARQLPrefixes + SPARQLSelect + SPARQLWhere
+				+ SPARQLGroubBy + SPARQLOrderBy + SPARQLLimit;
 		return SPARQLQuery;
 	}
 
@@ -263,9 +284,9 @@ public abstract class SELECTStatementProcessor {
 			TExpression left = condition.getLeftOperand();
 			TExpression right = condition.getRightOperand();
 
-			//System.out.println("condition.getLeftOperand(): " + left);
+			// System.out.println("condition.getLeftOperand(): " + left);
 			// System.out.println("condition.getOperator(): " + operator);
-			//System.out.println("condition.getRightOperand(): " + right);
+			// System.out.println("condition.getRightOperand(): " + right);
 			String operator = condition.toString().substring(
 					condition.toString().lastIndexOf(left.toString())
 							+ left.toString().length(),
@@ -276,17 +297,17 @@ public abstract class SELECTStatementProcessor {
 			return str;
 
 		} else {
-		//	System.out.println("condition: " + condition);
+			// System.out.println("condition: " + condition);
 			String operator = condition.getOperatorToken().toString();
-		//	System.out.println("condition.getOperatorToken(): " + operator);
+			// System.out.println("condition.getOperatorToken(): " + operator);
 
 			if (operator.equalsIgnoreCase("LIKE")) {
 
 				String[] lr = condition.toString().split(operator);
 				String left = lr[0];
 				String right = lr[1];
-				left=left.substring(0,left.length()-1);
-				right=right.substring(1,right.length());
+				left = left.substring(0, left.length() - 1);
+				right = right.substring(1, right.length());
 				// regex(?ename, "^S")
 				str += " regex(?" + left + ",\"" + right + "\") ";
 			} else {
