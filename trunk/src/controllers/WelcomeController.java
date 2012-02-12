@@ -1,10 +1,11 @@
 package controllers;
 
+import sql2sparql.SELECTStatementProcessor;
+
 public class WelcomeController {
 
 	public String sparqlize(String sqlQuery) {
-		// TODO
-		return "HERE SPARQL QUERY";
+		return SELECTStatementProcessor.processQuery(sqlQuery);
 	}
 
 	public void queryEndpoint() {
