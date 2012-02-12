@@ -2,6 +2,7 @@ package sql2sparql;
 
 import gudusoft.gsqlparser.EDbVendor;
 import gudusoft.gsqlparser.TGSqlParser;
+import gudusoft.gsqlparser.nodes.TArrayAccess;
 import gudusoft.gsqlparser.nodes.TExpression;
 import gudusoft.gsqlparser.nodes.TGroupByItemList;
 import gudusoft.gsqlparser.nodes.TJoinList;
@@ -182,44 +183,108 @@ public abstract class SELECTStatementProcessor {
 	}
 
 	public static String precessRecursiveWhere(TExpression condition) {
+		boolean parentheses = false;
 		String str = "";
-		if (condition.getOperatorToken() == null) {
-			TExpression left = condition.getLeftOperand();
-			TExpression right = condition.getRightOperand();
-			String operator = condition.toString().substring(
-					condition.toString().lastIndexOf(left.toString())
-							+ left.toString().length(),
-					condition.toString().lastIndexOf(right.toString()));
+		//System.out.println("condition: " + condition);
+		// if(condition.getArrayAccess()!=null)
+		//System.out.println("condition.getComparisonOperator(): "
+		//		+ condition.getComparisonOperator());
+		// remove(condition.toString());
+		//System.out.println("condition.getOperatorToken(): "
+		//		+ condition.getOperatorToken());
 
-			str += "?" + left + operator + right.toString().replaceAll("'", "");
+		if (has(condition.toString())&&condition.getOperatorToken()==null) {
 
-			return str;
-		} else {
-			String operator = condition.getOperatorToken().toString();
+			parentheses = true;
 
-			if (operator.equalsIgnoreCase("LIKE")) {
-				String[] lr = condition.toString().split(operator);
-				String left = lr[0];
-				String right = lr[1];
-				left = left.substring(0, left.length() - 1);
-				right = right.substring(1, right.length());
-				// regex(?ename, "^S")
-				str += " regex(?" + left + ",\"" + right.replaceAll("'", "")
-						+ "\") ";
-			} else {
+			//System.out.println("has(condition.toString())");
+			String rem = remove(condition.toString());
+			String newSelect = "SELECT A FROM B WHERE " + rem;
 
+			//System.out.println(newSelect);
+
+			TGSqlParser sqlparser = new TGSqlParser(EDbVendor.dbvmysql);
+			sqlparser.setSqltext(newSelect);
+
+			int ret = sqlparser.parse();
+			if (0 == ret) {
+				TSelectSqlStatement select = (TSelectSqlStatement) sqlparser.sqlstatements
+						.get(0);
+				TWhereClause where = select.getWhereClause();
+				if (null != where) {
+
+					TExpression newCondition = where.getCondition();
+					String sss = precessRecursiveWhere(newCondition);
+				//	System.out.println("SSSS+ " + sss);
+					
+					str+= "("+sss+")";
+				}
+			}
+		}
+
+		if (parentheses != true) {
+
+			if (condition.getOperatorToken() == null) {
 				TExpression left = condition.getLeftOperand();
 				TExpression right = condition.getRightOperand();
-				String recLeft = precessRecursiveWhere(left);
-				String recRight = precessRecursiveWhere(right);
-				if (operator.equalsIgnoreCase("or"))
-					operator = " || ";
-				else if (operator.equalsIgnoreCase("and"))
-					operator = " && ";
-				str += recLeft + operator + recRight;
+			//	System.out.println("-left: " + left);
+			//	System.out.println("-right: " + right);
+				String operator = condition.getComparisonOperator().toString();
 
+				// condition.toString().substring(
+				// condition.toString().lastIndexOf(left.toString())
+				// + left.toString().length(),
+				// condition.toString().lastIndexOf(right.toString()));
+
+				str += "?" + left + operator
+						+ right.toString().replaceAll("'", "\"");
+
+				return str;
+			} else {
+				String operator = condition.getOperatorToken().toString();
+
+				if (operator.equalsIgnoreCase("LIKE")) {
+					String[] lr = condition.toString().split(operator);
+					String left = lr[0];
+					String right = lr[1];
+					left = left.substring(0, left.length() - 1);
+					right = right.substring(1, right.length());
+					// regex(?ename, "^S")
+					str += " regex(?" + left + ",\""
+							+ right.replaceAll("'", "") + "\") ";
+				} else {
+
+					TExpression left = condition.getLeftOperand();
+					TExpression right = condition.getRightOperand();
+
+				//	System.out.println("left: " + left);
+				//	System.out.println("right: " + right);
+
+					String recLeft = precessRecursiveWhere(left);
+					String recRight = precessRecursiveWhere(right);
+					if (operator.equalsIgnoreCase("or"))
+						operator = " || ";
+					else if (operator.equalsIgnoreCase("and"))
+						operator = " && ";
+					str += recLeft + operator + recRight;
+
+				}
 			}
-			return str;
+
 		}
+		return str;
+	}
+
+	public static boolean has(String cond) {
+		if (cond.charAt(0) == '(')
+			return true;
+		else
+			return false;
+	}
+
+	public static String remove(String cond) {
+		// System.out.println("cond.substring(1, cond.length() - 1): "+cond.substring(1,
+		// cond.length() - 1));
+		return cond.substring(1, cond.length() - 1);
 	}
 }
