@@ -10,6 +10,22 @@ import controllers.WelcomeController;
 public class WelcomeMB {
 	private String sqlQuery;
 	private String sparqlQuery;
+	private String sparqlQueryResults;
+
+	/**
+	 * @return the sparqlQueryResults
+	 */
+	public String getSparqlQueryResults() {
+		return sparqlQueryResults;
+	}
+
+	/**
+	 * @param sparqlQueryResults
+	 *            the sparqlQueryResults to set
+	 */
+	public void setSparqlQueryResults(String sparqlQueryResults) {
+		this.sparqlQueryResults = sparqlQueryResults;
+	}
 
 	/**
 	 * 
@@ -17,12 +33,12 @@ public class WelcomeMB {
 	 */
 	public void sparqlize() {
 		WelcomeController wc = new WelcomeController();
-		sparqlQuery = wc.sparqlize(sqlQuery);		
+		sparqlQuery = wc.sparqlize(sqlQuery);
 	}
 
 	public void queryEndpoint() {
 		WelcomeController wc = new WelcomeController();
-		wc.queryEndpoint();
+		sparqlQueryResults = wc.queryEndpoint(sparqlQuery);
 
 	}
 
