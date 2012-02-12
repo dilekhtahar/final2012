@@ -6,6 +6,7 @@ import java.util.Map;
 
 public abstract class SQL2SPARQLConsts {
 	public final static Map<String, String> NAMESPACES;
+
 	public static final String DEFAULT_NS = "_default";
 	static {
 		Map<String, String> aMap = new HashMap<String, String>();

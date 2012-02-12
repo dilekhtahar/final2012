@@ -65,100 +65,12 @@ public abstract class SELECTStatementProcessor {
 		return "Nothing";
 	}
 
-	private static String simpleLightSelect(TSelectSqlStatement select) {
-		// PREFIXES PART
-		String SPARQLPrefixes = "";
-
-		for (int i = 0; i < select.tables.size(); i++) {
-			if (SQL2SPARQLConsts.NAMESPACES.containsKey(select.tables
-					.getElement(i).toString())) {
-				SPARQLPrefixes += "PREFIX "
-						+ select.tables.getElement(i).toString()
-						+ " : <"
-						+ SQL2SPARQLConsts.NAMESPACES.get(select.tables
-								.getElement(i).toString()) + ">\n";
-			} else {
-				SPARQLPrefixes += "PREFIX "
-						+ select.tables.getElement(i).toString()
-						+ ": <"
-						+ SQL2SPARQLConsts.NAMESPACES
-								.get(SQL2SPARQLConsts.DEFAULT_NS) + "/"
-						+ select.tables.getElement(i).toString() + ">\n";
-			}
-		}
-		// SELECT PART
-		String SPARQLSelect = "SELECT";
-		String SPARQLWhere = "\nWHERE{";
-
-		TResultColumnList listOfFields = select.getResultColumnList();
-		TJoinList joinList = select.joins;// tables list of From clause
-		for (int i = 0; i < listOfFields.size(); i++) {
-			SPARQLSelect += " ?" + listOfFields.getElement(i).toString();
-			SPARQLWhere += "\n\t?x " + joinList.getElement(0).toString() + ":"
-					+ listOfFields.getElement(i).toString() + " ?"
-					+ listOfFields.getElement(i).toString() + " .";
-		}
-
-		SPARQLWhere += "\n}";
-		String SPARQLGroubBy = "";
-		if (null != select.getGroupByClause()) {
-			SPARQLGroubBy += "\nGROUP BY";
-			TGroupByItemList listGrBy = select.getGroupByClause().getItems();
-			for (int i = 0; i < listGrBy.size(); i++) {
-				SPARQLGroubBy += " ?" + listGrBy.getElement(i).toString();
-			}
-		}
-		String SPARQLOrderBy = "";
-		if (null != select.getOrderbyClause()) {
-			SPARQLOrderBy += "\nORDER BY";
-			TOrderByItemList listOrderBy = select.getOrderbyClause().getItems();
-			for (int i = 0; i < listOrderBy.size(); i++) {
-				int sortType = ((TOrderByItem) listOrderBy.getElement(i))
-						.getSortType();
-				if (sortType == 2)// DESC
-				{
-					SPARQLOrderBy += " DESC(?"
-							+ ((TOrderByItem) listOrderBy.getElement(i))
-									.getSortKey().toString() + ")";
-				} else {// default - ASC
-					SPARQLOrderBy += " ?"
-							+ ((TOrderByItem) listOrderBy.getElement(i))
-									.getSortKey().toString();
-				}
-			}
-		}
-		String SPARQLLimit = "";
-		if (null != select.getLimitClause()) {
-			SPARQLLimit += "\n"
-					+ ((TLimitClause) select.getLimitClause()).toString();
-		}
-		String SPARQLQuery = SPARQLPrefixes + SPARQLSelect + SPARQLWhere
-				+ SPARQLGroubBy + SPARQLOrderBy + SPARQLLimit;
-		return SPARQLQuery;
-	}
-
 	private static String simpleLightSelectWhere(TSelectSqlStatement select) {
 
 		// PREFIXES PART
-		String SPARQLPrefixes = "";
+		String SPARQLPrefixes = buildPrefixes(select);
 
-		for (int i = 0; i < select.tables.size(); i++) {
-			if (SQL2SPARQLConsts.NAMESPACES.containsKey(select.tables
-					.getElement(i).toString())) {
-				SPARQLPrefixes += "PREFIX "
-						+ select.tables.getElement(i).toString()
-						+ " : <"
-						+ SQL2SPARQLConsts.NAMESPACES.get(select.tables
-								.getElement(i).toString()) + ">\n";
-			} else {
-				SPARQLPrefixes += "PREFIX "
-						+ select.tables.getElement(i).toString()
-						+ ": <"
-						+ SQL2SPARQLConsts.NAMESPACES
-								.get(SQL2SPARQLConsts.DEFAULT_NS) + "/"
-						+ select.tables.getElement(i).toString() + ">\n";
-			}
-		}
+		// SELECT WHERE
 		String SPARQLSelect = "SELECT";
 		String SPARQLWhere = "\nWHERE{";
 
@@ -170,13 +82,11 @@ public abstract class SELECTStatementProcessor {
 					+ listOfFields.getElement(i).toString() + " ?"
 					+ listOfFields.getElement(i).toString() + " .";
 		}
-
+		// FILTER
 		String SPARQLFilter = "";
 		TWhereClause where = select.getWhereClause();
 		if (null != where) {
 			SPARQLFilter = "\n\tFILTER(";
-			// System.out.println("__where.getCondition(): "
-			// + where.getCondition());
 			TExpression condition = where.getCondition();
 			String str = precessRecursiveWhere(condition);
 			SPARQLFilter += str;
@@ -184,14 +94,31 @@ public abstract class SELECTStatementProcessor {
 		}
 
 		SPARQLWhere += SPARQLFilter + "\n}";
-		String SPARQLGroubBy = "";
-		if (null != select.getGroupByClause()) {
-			SPARQLGroubBy += "\nGROUP BY";
-			TGroupByItemList listGrBy = select.getGroupByClause().getItems();
-			for (int i = 0; i < listGrBy.size(); i++) {
-				SPARQLGroubBy += " ?" + listGrBy.getElement(i).toString();
-			}
+
+		// GROUP BY
+		String SPARQLGroubBy = buildGroupBy(select);
+
+		// ORDER BY
+		String SPARQLOrderBy = buildOrderBy(select);
+
+		// LIMIT
+		String SPARQLLimit = buildLimit(select);
+
+		String SPARQLQuery = SPARQLPrefixes + SPARQLSelect + SPARQLWhere
+				+ SPARQLGroubBy + SPARQLOrderBy + SPARQLLimit;
+		return SPARQLQuery;
+	}
+
+	private static String buildLimit(TSelectSqlStatement select) {
+		String SPARQLLimit = "";
+		if (null != select.getLimitClause()) {
+			SPARQLLimit += "\n"
+					+ ((TLimitClause) select.getLimitClause()).toString();
 		}
+		return SPARQLLimit;
+	}
+
+	private static String buildOrderBy(TSelectSqlStatement select) {
 		String SPARQLOrderBy = "";
 		if (null != select.getOrderbyClause()) {
 			SPARQLOrderBy += "\nORDER BY";
@@ -211,15 +138,42 @@ public abstract class SELECTStatementProcessor {
 				}
 			}
 		}
-		String SPARQLLimit = "";
-		if (null != select.getLimitClause()) {
-			SPARQLLimit += "\n"
-					+ ((TLimitClause) select.getLimitClause()).toString();
-		}
+		return SPARQLOrderBy;
+	}
 
-		String SPARQLQuery = SPARQLPrefixes + SPARQLSelect + SPARQLWhere
-				+ SPARQLGroubBy + SPARQLOrderBy + SPARQLLimit;
-		return SPARQLQuery;
+	private static String buildGroupBy(TSelectSqlStatement select) {
+		String SPARQLGroubBy = "";
+		if (null != select.getGroupByClause()) {
+			SPARQLGroubBy += "\nGROUP BY";
+			TGroupByItemList listGrBy = select.getGroupByClause().getItems();
+			for (int i = 0; i < listGrBy.size(); i++) {
+				SPARQLGroubBy += " ?" + listGrBy.getElement(i).toString();
+			}
+		}
+		return SPARQLGroubBy;
+	}
+
+	private static String buildPrefixes(TSelectSqlStatement select) {
+		String SPARQLPrefixes = "";
+
+		for (int i = 0; i < select.tables.size(); i++) {
+			if (SQL2SPARQLConsts.NAMESPACES.containsKey(select.tables
+					.getElement(i).toString())) {
+				SPARQLPrefixes += "PREFIX "
+						+ select.tables.getElement(i).toString()
+						+ " : <"
+						+ SQL2SPARQLConsts.NAMESPACES.get(select.tables
+								.getElement(i).toString()) + ">\n";
+			} else {
+				SPARQLPrefixes += "PREFIX "
+						+ select.tables.getElement(i).toString()
+						+ ": <"
+						+ SQL2SPARQLConsts.NAMESPACES
+								.get(SQL2SPARQLConsts.DEFAULT_NS) + "/"
+						+ select.tables.getElement(i).toString() + ">\n";
+			}
+		}
+		return SPARQLPrefixes;
 	}
 
 	public static String precessRecursiveWhere(TExpression condition) {
@@ -245,7 +199,8 @@ public abstract class SELECTStatementProcessor {
 				left = left.substring(0, left.length() - 1);
 				right = right.substring(1, right.length());
 				// regex(?ename, "^S")
-				str += " regex(?" + left + ",\"" + right.replaceAll("'", "") + "\") ";
+				str += " regex(?" + left + ",\"" + right.replaceAll("'", "")
+						+ "\") ";
 			} else {
 
 				TExpression left = condition.getLeftOperand();
