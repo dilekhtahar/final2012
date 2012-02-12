@@ -5,7 +5,6 @@ import java.util.HashMap;
 
 import gudusoft.gsqlparser.EDbVendor;
 import gudusoft.gsqlparser.TGSqlParser;
-import gudusoft.gsqlparser.nodes.TArrayAccess;
 import gudusoft.gsqlparser.nodes.TExpression;
 import gudusoft.gsqlparser.nodes.TGroupByItemList;
 import gudusoft.gsqlparser.nodes.TJoinList;
@@ -20,9 +19,9 @@ public abstract class SELECTStatementProcessor {
 	// Constants
 	public static String VALID = "VALID QUERY";
 	public static String INVALID = "INVALID QUERY";
-	public static ArrayList<String> exists = new ArrayList<String>();
-	public static ArrayList<String> notexists = new ArrayList<String>();
-	public static HashMap<String, String> alias = new HashMap<String, String>();
+	static ArrayList<String> listOfDefinedFields = new ArrayList<String>();
+	static ArrayList<String> listOfNewFields = new ArrayList<String>();
+	static HashMap<String, String> alias = new HashMap<String, String>();
 
 	/**
 	 * Validates a query
@@ -48,8 +47,8 @@ public abstract class SELECTStatementProcessor {
 	 * @return
 	 */
 	public static String processQuery(String selectStatement) {
-		exists = new ArrayList<String>();
-		notexists = new ArrayList<String>();
+		listOfDefinedFields = new ArrayList<String>();
+		listOfNewFields = new ArrayList<String>();
 		TGSqlParser sqlparser = new TGSqlParser(EDbVendor.dbvmysql);
 		sqlparser.setSqltext(selectStatement);
 
@@ -61,12 +60,10 @@ public abstract class SELECTStatementProcessor {
 		if (0 == ret) {
 			TSelectSqlStatement select = (TSelectSqlStatement) sqlparser.sqlstatements
 					.get(0);
-			TJoinList joinList = select.joins;// tables list of From clause
-			// list of mappings
+			TJoinList joinList = select.joins;
 
 			if (1 == joinList.size()) {
-				// return simpleLightSelect(select);
-				// } else if (1 == joinList.size() && (null != where)) {
+
 				String validation = validateQuery(selectStatement);
 				if (validation.equals(VALID)) {
 					return simpleLightSelectWhere(select);
@@ -76,7 +73,7 @@ public abstract class SELECTStatementProcessor {
 			} else if (1 > joinList.size()) {
 				return "1 > joinList.size()";
 			} else if (true) {
-				return simpleLightSelectWhereFrom(select);
+				return complexLightSelectWhere(select);
 			}
 		} else {
 			return INVALID + ": " + sqlparser.getErrormessage();
@@ -84,7 +81,7 @@ public abstract class SELECTStatementProcessor {
 		return "Nothing";
 	}
 
-	private static String simpleLightSelectWhereFrom(TSelectSqlStatement select) {
+	private static String complexLightSelectWhere(TSelectSqlStatement select) {
 
 		// PREFIXES PART
 		String SPARQLPrefixes = buildPrefixes(select);
@@ -92,14 +89,12 @@ public abstract class SELECTStatementProcessor {
 		// SELECT WHERE
 		String SPARQLSelect = "SELECT";
 		String SPARQLWhere = "\nWHERE{";
-		String table = "";
+
 		TResultColumnList listOfFields = select.getResultColumnList();
 		TJoinList joinList = select.joins;// tables list of SELECT clause
 
 		for (int i = 0; i < joinList.size(); i++) {
 
-			//System.out.println("joinList.getElement(0).toString(): "
-			//		+ joinList.getElement(i).toString());
 			String[] str = joinList.getElement(i).toString().split(" ");
 			alias.put(str[1], str[0]);
 		}
@@ -113,14 +108,10 @@ public abstract class SELECTStatementProcessor {
 
 			String sss[] = ss.split("\\.");
 
-			//System.out.println("alias: " + alias);
-			//System.out.println("s[0]: " + sss[0]);
-			//System.out.println("a[1]: " + sss[1]);
-
 			SPARQLWhere += "\n\t?" + sss[0] + " " + alias.get(sss[0]) + ":"
 					+ sss[1] + " ?" + ss.replaceAll("\\.", "_") + " .";
-			table = joinList.getElement(0).toString();
-			exists.add(listOfFields.getElement(i).toString());
+
+			listOfDefinedFields.add(listOfFields.getElement(i).toString());
 		}
 
 		// FILTER
@@ -133,19 +124,12 @@ public abstract class SELECTStatementProcessor {
 			SPARQLFilter += str;
 			SPARQLFilter += ")";
 		}
-		// System.out.println("exists: " + exists);
-		//System.out.println("notexists: " + notexists);
 
 		String add = "";
-		for (String str : notexists) {
-
-			// System.out.println("table: " +table);
-			// System.out.println("tt[0]: " +alias.get(tt[0]));
-			// System.out.println("tt[1]: " +alias.get(tt[1]));
+		for (String str : listOfNewFields) {
 			String[] ss = str.split("\\.");
 			add += "\n\t?" + ss[0] + " " + alias.get(ss[0]) + ":" + ss[1]
 					+ " ?" + str.replaceAll("\\.", "_") + " .";
-
 		}
 		SPARQLWhere += add + SPARQLFilter + "\n}";
 
@@ -180,7 +164,7 @@ public abstract class SELECTStatementProcessor {
 					+ listOfFields.getElement(i).toString() + " ?"
 					+ listOfFields.getElement(i).toString() + " .";
 			table = joinList.getElement(0).toString();
-			exists.add(listOfFields.getElement(i).toString());
+			listOfDefinedFields.add(listOfFields.getElement(i).toString());
 		}
 
 		// FILTER
@@ -193,11 +177,9 @@ public abstract class SELECTStatementProcessor {
 			SPARQLFilter += str;
 			SPARQLFilter += ")";
 		}
-		// System.out.println("exists: " + exists);
-		// System.out.println("notexists: " + notexists);
-
+		
 		String add = "";
-		for (String str : notexists) {
+		for (String str : listOfNewFields) {
 			add += "\n\t?x " + table + ":" + str + " ?" + str + " .";
 
 		}
@@ -235,7 +217,7 @@ public abstract class SELECTStatementProcessor {
 				int sortType = ((TOrderByItem) listOrderBy.getElement(i))
 						.getSortType();
 				if (sortType == 2)// DESC
-				{					
+				{
 					SPARQLOrderBy += " DESC(?"
 							+ ((TOrderByItem) listOrderBy.getElement(i))
 									.getSortKey().toString() + ")";
@@ -258,22 +240,22 @@ public abstract class SELECTStatementProcessor {
 				int sortType = ((TOrderByItem) listOrderBy.getElement(i))
 						.getSortType();
 				if (sortType == 2)// DESC
-				{					
+				{
 					SPARQLOrderBy += " DESC(?"
 							+ ((TOrderByItem) listOrderBy.getElement(i))
-									.getSortKey().toString().replaceAll("\\.", "_") + ")";
+									.getSortKey().toString()
+									.replaceAll("\\.", "_") + ")";
 				} else {// default - ASC
 					SPARQLOrderBy += " ?"
 							+ ((TOrderByItem) listOrderBy.getElement(i))
-									.getSortKey().toString().replaceAll("\\.", "_");
+									.getSortKey().toString()
+									.replaceAll("\\.", "_");
 				}
 			}
 		}
 		return SPARQLOrderBy;
 	}
-	
-	
-	
+
 	private static String buildGroupBy(TSelectSqlStatement select) {
 		String SPARQLGroubBy = "";
 		if (null != select.getGroupByClause()) {
@@ -285,13 +267,16 @@ public abstract class SELECTStatementProcessor {
 		}
 		return SPARQLGroubBy;
 	}
+
 	private static String buildGroupByFrom(TSelectSqlStatement select) {
 		String SPARQLGroubBy = "";
 		if (null != select.getGroupByClause()) {
 			SPARQLGroubBy += "\nGROUP BY";
 			TGroupByItemList listGrBy = select.getGroupByClause().getItems();
 			for (int i = 0; i < listGrBy.size(); i++) {
-				SPARQLGroubBy += " ?" + listGrBy.getElement(i).toString().replaceAll("\\.","_");
+				SPARQLGroubBy += " ?"
+						+ listGrBy.getElement(i).toString()
+								.replaceAll("\\.", "_");
 			}
 		}
 		return SPARQLGroubBy;
@@ -320,32 +305,26 @@ public abstract class SELECTStatementProcessor {
 		return SPARQLPrefixes;
 	}
 
-	public static String precessRecursiveWhere(TExpression condition) {
+	private static String precessRecursiveWhere(TExpression condition) {
 		boolean parentheses = false;
 		String str = "";
-		// System.out.println("condition: " + condition);
+		
 
 		if (condition.toString().contains("SELECT")) {
-			System.out.println();
+			//System.out.println();
 		} else {
 
-			// if(condition.getArrayAccess()!=null)
-			// System.out.println("condition.getComparisonOperator(): "
-			// + condition.getComparisonOperator());
-			// remove(condition.toString());
-			// System.out.println("condition.getOperatorToken(): "
-			// + condition.getOperatorToken());
+			
 
 			if (has(condition.toString())
 					&& condition.getOperatorToken() == null) {
 
 				parentheses = true;
 
-				// System.out.println("has(condition.toString())");
+			
 				String rem = remove(condition.toString());
 				String newSelect = "SELECT A FROM B WHERE " + rem;
-
-				// System.out.println(newSelect);
+				
 
 				TGSqlParser sqlparser = new TGSqlParser(EDbVendor.dbvmysql);
 				sqlparser.setSqltext(newSelect);
@@ -358,10 +337,9 @@ public abstract class SELECTStatementProcessor {
 					if (null != where) {
 
 						TExpression newCondition = where.getCondition();
-						String sss = precessRecursiveWhere(newCondition);
-						// System.out.println("SSSS+ " + sss);
+						String precessWhere = precessRecursiveWhere(newCondition);						
 
-						str += "(" + sss + ")";
+						str += "(" + precessWhere + ")";
 					}
 				}
 			}
@@ -371,23 +349,17 @@ public abstract class SELECTStatementProcessor {
 				if (condition.getOperatorToken() == null) {
 					TExpression left = condition.getLeftOperand();
 					TExpression right = condition.getRightOperand();
-					// System.out.println("-left: " + left);
-					// System.out.println("-right: " + right);
+				
 					String operator = condition.getComparisonOperator()
-							.toString();
-
-					// condition.toString().substring(
-					// condition.toString().lastIndexOf(left.toString())
-					// + left.toString().length(),
-					// condition.toString().lastIndexOf(right.toString()));
+							.toString();				
 
 					String strRight = right.toString();
 					if (strRight.contains("'")) {
 						strRight = strRight.replaceAll("'", "\"");
 					} else {
 						if (isInt(strRight) == false) {
-							if (!exists.contains(strRight)) {
-								notexists.add(strRight);
+							if (!listOfDefinedFields.contains(strRight)) {
+								listOfNewFields.add(strRight);
 							}
 							strRight = "?" + strRight;
 						}
@@ -397,8 +369,8 @@ public abstract class SELECTStatementProcessor {
 					String strLeft = left.toString().replaceAll("\\.", "_");
 
 					strRight = strRight.replaceAll("\\.", "_");
-					if (!exists.contains(left.toString())) {
-						notexists.add(left.toString());
+					if (!listOfDefinedFields.contains(left.toString())) {
+						listOfNewFields.add(left.toString());
 					}
 
 					str += "?" + strLeft + operator + strRight;
@@ -413,19 +385,17 @@ public abstract class SELECTStatementProcessor {
 						String right = lr[1];
 						left = left.substring(0, left.length() - 1);
 						right = right.substring(1, right.length());
-						// regex(?ename, "^S")
-						if (!exists.contains(left.toString())) {
-							notexists.add(left.toString());
+						
+						if (!listOfDefinedFields.contains(left.toString())) {
+							listOfNewFields.add(left.toString());
 						}
-						str += " regex(?" + left + ",\""
+						str += " regex(?" + left.replaceAll("\\.", "_") + ",\""
 								+ right.replaceAll("'", "") + "\") ";
 					} else {
 
 						TExpression left = condition.getLeftOperand();
 						TExpression right = condition.getRightOperand();
-
-						// System.out.println("left: " + left);
-						// System.out.println("right: " + right);
+					
 
 						String recLeft = precessRecursiveWhere(left);
 						String recRight = precessRecursiveWhere(right);
@@ -443,20 +413,18 @@ public abstract class SELECTStatementProcessor {
 		return str;
 	}
 
-	public static boolean has(String cond) {
+	private static boolean has(String cond) {
 		if (cond.charAt(0) == '(')
 			return true;
 		else
 			return false;
 	}
 
-	public static String remove(String cond) {
-		// System.out.println("cond.substring(1, cond.length() - 1): "+cond.substring(1,
-		// cond.length() - 1));
+	private static String remove(String cond) {		
 		return cond.substring(1, cond.length() - 1);
 	}
 
-	public static boolean isInt(String i) {
+	private static boolean isInt(String i) {
 		try {
 			Integer.parseInt(i);
 			return true;
