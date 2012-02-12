@@ -1,6 +1,7 @@
 package sql2sparql;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 
 import gudusoft.gsqlparser.EDbVendor;
 import gudusoft.gsqlparser.TGSqlParser;
@@ -21,6 +22,7 @@ public abstract class SELECTStatementProcessor {
 	public static String INVALID = "INVALID QUERY";
 	public static ArrayList<String> exists = new ArrayList<String>();
 	public static ArrayList<String> notexists = new ArrayList<String>();
+	public static HashMap<String, String> alias = new HashMap<String, String>();
 
 	/**
 	 * Validates a query
@@ -51,12 +53,17 @@ public abstract class SELECTStatementProcessor {
 		TGSqlParser sqlparser = new TGSqlParser(EDbVendor.dbvmysql);
 		sqlparser.setSqltext(selectStatement);
 
+		if (selectStatement.contains("SELECT *")) {
+			return "SELECT ?x ?y ?x\nWHERE{\n\t?x ?y ?z .\n}";
+		}
+
 		int ret = sqlparser.parse();
 		if (0 == ret) {
 			TSelectSqlStatement select = (TSelectSqlStatement) sqlparser.sqlstatements
 					.get(0);
 			TJoinList joinList = select.joins;// tables list of From clause
 			// list of mappings
+
 			if (1 == joinList.size()) {
 				// return simpleLightSelect(select);
 				// } else if (1 == joinList.size() && (null != where)) {
@@ -69,12 +76,91 @@ public abstract class SELECTStatementProcessor {
 			} else if (1 > joinList.size()) {
 				return "1 > joinList.size()";
 			} else if (true) {
-				return "1 < joinList.size()";
+				return simpleLightSelectWhereFrom(select);
 			}
 		} else {
 			return INVALID + ": " + sqlparser.getErrormessage();
 		}
 		return "Nothing";
+	}
+
+	private static String simpleLightSelectWhereFrom(TSelectSqlStatement select) {
+
+		// PREFIXES PART
+		String SPARQLPrefixes = buildPrefixes(select);
+
+		// SELECT WHERE
+		String SPARQLSelect = "SELECT";
+		String SPARQLWhere = "\nWHERE{";
+		String table = "";
+		TResultColumnList listOfFields = select.getResultColumnList();
+		TJoinList joinList = select.joins;// tables list of SELECT clause
+
+		for (int i = 0; i < joinList.size(); i++) {
+
+			//System.out.println("joinList.getElement(0).toString(): "
+			//		+ joinList.getElement(i).toString());
+			String[] str = joinList.getElement(i).toString().split(" ");
+			alias.put(str[1], str[0]);
+		}
+
+		for (int i = 0; i < listOfFields.size(); i++) {
+			SPARQLSelect += " ?"
+					+ listOfFields.getElement(i).toString()
+							.replaceAll("\\.", "_");
+
+			String ss = listOfFields.getElement(i).toString();
+
+			String sss[] = ss.split("\\.");
+
+			//System.out.println("alias: " + alias);
+			//System.out.println("s[0]: " + sss[0]);
+			//System.out.println("a[1]: " + sss[1]);
+
+			SPARQLWhere += "\n\t?" + sss[0] + " " + alias.get(sss[0]) + ":"
+					+ sss[1] + " ?" + ss.replaceAll("\\.", "_") + " .";
+			table = joinList.getElement(0).toString();
+			exists.add(listOfFields.getElement(i).toString());
+		}
+
+		// FILTER
+		String SPARQLFilter = "";
+		TWhereClause where = select.getWhereClause();
+		if (null != where) {
+			SPARQLFilter = "\n\tFILTER(";
+			TExpression condition = where.getCondition();
+			String str = precessRecursiveWhere(condition);
+			SPARQLFilter += str;
+			SPARQLFilter += ")";
+		}
+		// System.out.println("exists: " + exists);
+		//System.out.println("notexists: " + notexists);
+
+		String add = "";
+		for (String str : notexists) {
+
+			// System.out.println("table: " +table);
+			// System.out.println("tt[0]: " +alias.get(tt[0]));
+			// System.out.println("tt[1]: " +alias.get(tt[1]));
+			String[] ss = str.split("\\.");
+			add += "\n\t?" + ss[0] + " " + alias.get(ss[0]) + ":" + ss[1]
+					+ " ?" + str.replaceAll("\\.", "_") + " .";
+
+		}
+		SPARQLWhere += add + SPARQLFilter + "\n}";
+
+		// GROUP BY
+		String SPARQLGroubBy = buildGroupByFrom(select);
+
+		// ORDER BY
+		String SPARQLOrderBy = buildOrderByFrom(select);
+
+		// LIMIT
+		String SPARQLLimit = buildLimit(select);
+
+		String SPARQLQuery = SPARQLPrefixes + SPARQLSelect + SPARQLWhere
+				+ SPARQLGroubBy + SPARQLOrderBy + SPARQLLimit;
+		return SPARQLQuery;
 	}
 
 	private static String simpleLightSelectWhere(TSelectSqlStatement select) {
@@ -149,7 +235,7 @@ public abstract class SELECTStatementProcessor {
 				int sortType = ((TOrderByItem) listOrderBy.getElement(i))
 						.getSortType();
 				if (sortType == 2)// DESC
-				{
+				{					
 					SPARQLOrderBy += " DESC(?"
 							+ ((TOrderByItem) listOrderBy.getElement(i))
 									.getSortKey().toString() + ")";
@@ -163,6 +249,31 @@ public abstract class SELECTStatementProcessor {
 		return SPARQLOrderBy;
 	}
 
+	private static String buildOrderByFrom(TSelectSqlStatement select) {
+		String SPARQLOrderBy = "";
+		if (null != select.getOrderbyClause()) {
+			SPARQLOrderBy += "\nORDER BY";
+			TOrderByItemList listOrderBy = select.getOrderbyClause().getItems();
+			for (int i = 0; i < listOrderBy.size(); i++) {
+				int sortType = ((TOrderByItem) listOrderBy.getElement(i))
+						.getSortType();
+				if (sortType == 2)// DESC
+				{					
+					SPARQLOrderBy += " DESC(?"
+							+ ((TOrderByItem) listOrderBy.getElement(i))
+									.getSortKey().toString().replaceAll("\\.", "_") + ")";
+				} else {// default - ASC
+					SPARQLOrderBy += " ?"
+							+ ((TOrderByItem) listOrderBy.getElement(i))
+									.getSortKey().toString().replaceAll("\\.", "_");
+				}
+			}
+		}
+		return SPARQLOrderBy;
+	}
+	
+	
+	
 	private static String buildGroupBy(TSelectSqlStatement select) {
 		String SPARQLGroubBy = "";
 		if (null != select.getGroupByClause()) {
@@ -170,6 +281,17 @@ public abstract class SELECTStatementProcessor {
 			TGroupByItemList listGrBy = select.getGroupByClause().getItems();
 			for (int i = 0; i < listGrBy.size(); i++) {
 				SPARQLGroubBy += " ?" + listGrBy.getElement(i).toString();
+			}
+		}
+		return SPARQLGroubBy;
+	}
+	private static String buildGroupByFrom(TSelectSqlStatement select) {
+		String SPARQLGroubBy = "";
+		if (null != select.getGroupByClause()) {
+			SPARQLGroubBy += "\nGROUP BY";
+			TGroupByItemList listGrBy = select.getGroupByClause().getItems();
+			for (int i = 0; i < listGrBy.size(); i++) {
+				SPARQLGroubBy += " ?" + listGrBy.getElement(i).toString().replaceAll("\\.","_");
 			}
 		}
 		return SPARQLGroubBy;
@@ -201,7 +323,7 @@ public abstract class SELECTStatementProcessor {
 	public static String precessRecursiveWhere(TExpression condition) {
 		boolean parentheses = false;
 		String str = "";
-		//System.out.println("condition: " + condition);
+		// System.out.println("condition: " + condition);
 
 		if (condition.toString().contains("SELECT")) {
 			System.out.println();
@@ -264,15 +386,22 @@ public abstract class SELECTStatementProcessor {
 						strRight = strRight.replaceAll("'", "\"");
 					} else {
 						if (isInt(strRight) == false) {
+							if (!exists.contains(strRight)) {
+								notexists.add(strRight);
+							}
 							strRight = "?" + strRight;
 						}
 
 					}
+
+					String strLeft = left.toString().replaceAll("\\.", "_");
+
+					strRight = strRight.replaceAll("\\.", "_");
 					if (!exists.contains(left.toString())) {
 						notexists.add(left.toString());
 					}
 
-					str += "?" + left + operator + strRight;
+					str += "?" + strLeft + operator + strRight;
 
 					return str;
 				} else {
