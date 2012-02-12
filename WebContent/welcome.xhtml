@@ -33,8 +33,10 @@
 					</h:commandButton>
 					<br />
 					<br />
-					<h:commandButton value="SparqlQUERYLize" type="submit" onclick=""
-						action="#{welcome.queryEndpoint}" />
+					<h:commandButton value="SparqlQUERYLize" onclick=""
+						action="#{welcome.queryEndpoint}">
+						<f:ajax execute="sparqlQuery" render="sparqlQueryResults" />
+					</h:commandButton>
 				</h:panelGroup>
 				<h:panelGroup id="rightPanel" layout="block"
 					style="float: right; width: 40%">
@@ -45,6 +47,14 @@
 							style="resize:none; width:100%; height:300px;" />
 					</h:panelGroup>
 				</h:panelGroup>
+			</h:panelGroup>
+			<br />
+			<br />
+			<h:panelGroup layout="block"
+				style="margin-right:auto; margin-left:auto; width:96%;">
+				<h:inputTextarea id="sparqlQueryResults" cols="30" rows="10"
+					value="#{welcome.sparqlQueryResults}"
+					style="resize:none; width:100%; height:300px;" />
 			</h:panelGroup>
 			<br />
 		</h:form>
