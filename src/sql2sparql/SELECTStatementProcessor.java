@@ -185,23 +185,23 @@ public abstract class SELECTStatementProcessor {
 	public static String precessRecursiveWhere(TExpression condition) {
 		boolean parentheses = false;
 		String str = "";
-		//System.out.println("condition: " + condition);
+		// System.out.println("condition: " + condition);
 		// if(condition.getArrayAccess()!=null)
-		//System.out.println("condition.getComparisonOperator(): "
-		//		+ condition.getComparisonOperator());
+		// System.out.println("condition.getComparisonOperator(): "
+		// + condition.getComparisonOperator());
 		// remove(condition.toString());
-		//System.out.println("condition.getOperatorToken(): "
-		//		+ condition.getOperatorToken());
+		// System.out.println("condition.getOperatorToken(): "
+		// + condition.getOperatorToken());
 
-		if (has(condition.toString())&&condition.getOperatorToken()==null) {
+		if (has(condition.toString()) && condition.getOperatorToken() == null) {
 
 			parentheses = true;
 
-			//System.out.println("has(condition.toString())");
+			// System.out.println("has(condition.toString())");
 			String rem = remove(condition.toString());
 			String newSelect = "SELECT A FROM B WHERE " + rem;
 
-			//System.out.println(newSelect);
+			// System.out.println(newSelect);
 
 			TGSqlParser sqlparser = new TGSqlParser(EDbVendor.dbvmysql);
 			sqlparser.setSqltext(newSelect);
@@ -215,9 +215,9 @@ public abstract class SELECTStatementProcessor {
 
 					TExpression newCondition = where.getCondition();
 					String sss = precessRecursiveWhere(newCondition);
-				//	System.out.println("SSSS+ " + sss);
-					
-					str+= "("+sss+")";
+					// System.out.println("SSSS+ " + sss);
+
+					str += "(" + sss + ")";
 				}
 			}
 		}
@@ -227,17 +227,31 @@ public abstract class SELECTStatementProcessor {
 			if (condition.getOperatorToken() == null) {
 				TExpression left = condition.getLeftOperand();
 				TExpression right = condition.getRightOperand();
-			//	System.out.println("-left: " + left);
-			//	System.out.println("-right: " + right);
+				 System.out.println("-left: " + left);
+				 System.out.println("-right: " + right);
 				String operator = condition.getComparisonOperator().toString();
 
 				// condition.toString().substring(
 				// condition.toString().lastIndexOf(left.toString())
 				// + left.toString().length(),
 				// condition.toString().lastIndexOf(right.toString()));
+				
+				
+				
+				String strRight = right.toString();
+				if(strRight.contains("'")){
+				strRight=	strRight.replaceAll("'", "\"");
+				}
+				else{
+					if(isInt(strRight)==false){
+						strRight="?"+strRight;
+					}
+					
+				}
+				
 
 				str += "?" + left + operator
-						+ right.toString().replaceAll("'", "\"");
+						+ strRight;
 
 				return str;
 			} else {
@@ -250,6 +264,7 @@ public abstract class SELECTStatementProcessor {
 					left = left.substring(0, left.length() - 1);
 					right = right.substring(1, right.length());
 					// regex(?ename, "^S")
+					
 					str += " regex(?" + left + ",\""
 							+ right.replaceAll("'", "") + "\") ";
 				} else {
@@ -257,8 +272,8 @@ public abstract class SELECTStatementProcessor {
 					TExpression left = condition.getLeftOperand();
 					TExpression right = condition.getRightOperand();
 
-				//	System.out.println("left: " + left);
-				//	System.out.println("right: " + right);
+					// System.out.println("left: " + left);
+					// System.out.println("right: " + right);
 
 					String recLeft = precessRecursiveWhere(left);
 					String recRight = precessRecursiveWhere(right);
@@ -286,5 +301,14 @@ public abstract class SELECTStatementProcessor {
 		// System.out.println("cond.substring(1, cond.length() - 1): "+cond.substring(1,
 		// cond.length() - 1));
 		return cond.substring(1, cond.length() - 1);
+	}
+
+	public static boolean isInt(String i) {
+		try {
+			Integer.parseInt(i);
+			return true;
+		} catch (NumberFormatException nfe) {
+			return false;
+		}
 	}
 }

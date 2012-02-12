@@ -19,7 +19,8 @@ public class MainTest {
 		sqlList.add("SELECT LastName,FirstName FROM Persons WHERE LastName='Svendson' AND (FirstName='Tove' OR FirstName='Ola')");
 		sqlList.add("SELECT LastName,FirstName FROM Persons WHERE (FirstName='Tove' OR FirstName='Ola') OR (FirstName LIKE Sve)");
 		sqlList.add("SELECT LastName,FirstName FROM Persons WHERE LastName='Svendson' AND ((FirstName='Tove' OR FirstName='Ola') AND (SecondName LIKE 'Sve'))");
-		
+		sqlList.add("SELECT nume,prenume FROM tabela WHERE nume>prenume");
+		sqlList.add("SELECT nume,varsta FROM tabela WHERE varsta>30");
 		for (String sql : sqlList) {
 			System.out.println(sql+"\n");
 			System.out.println(SELECTStatementProcessor.processQuery(sql)
