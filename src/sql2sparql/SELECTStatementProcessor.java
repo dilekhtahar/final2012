@@ -53,11 +53,16 @@ public abstract class SELECTStatementProcessor {
 			if (1 == joinList.size()) {
 				// return simpleLightSelect(select);
 				// } else if (1 == joinList.size() && (null != where)) {
-				return simpleLightSelectWhere(select);
+				String validation = validateQuery(selectStatement);
+				if (validation.equals(VALID)) {
+					return simpleLightSelectWhere(select);
+				} else {
+					return validation;
+				}
 			} else if (1 > joinList.size()) {
-				return "TRU";
+				return "1 > joinList.size()";
 			} else if (true) {
-				return "TRU";
+				return "1 < joinList.size()";
 			}
 		} else {
 			return INVALID + ": " + sqlparser.getErrormessage();
@@ -161,7 +166,7 @@ public abstract class SELECTStatementProcessor {
 					.getElement(i).toString())) {
 				SPARQLPrefixes += "PREFIX "
 						+ select.tables.getElement(i).toString()
-						+ " : <"
+						+ ": <"
 						+ SQL2SPARQLConsts.NAMESPACES.get(select.tables
 								.getElement(i).toString()) + ">\n";
 			} else {
