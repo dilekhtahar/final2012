@@ -24,7 +24,10 @@ public class MainTest {
 		sqlList.add("SELECT p.fname , a.city FROM people p , addresses a	WHERE p.ID_Department = a.ID AND ( p.age > 50 OR p.sex = 'M' ) ORDER BY p.fname DESC , a.city ASC");
 		
 		sqlList.add("SELECT f.name , d.occupation FROM foaf f , dbp d WHERE f.name LIKE 'escu$' ORDER BY f.name");
-		sqlList.add("SELECT * FROM foaf");
+		sqlList.add("SELECT p.nume , st.id , st.studii , st.grupa FROM persoana p , student st , sex s WHERE st.id = p.id and p.sex = s.cod and s.nume = 'baiat'");
+		sqlList.add("SELECT * FROM foaf"); 
+		//sqlList.add("SELECT persoana.nume , student.id , student.studii , student.grupa FROM persoana , student , sex WHERE st.id = p.id and p.sex = s.cod and s.nume = 'baiat'");
+		sqlList.add("SELECT nume FROM table WHERE nume = 'Daniel'  AND( prenume = 'd' OR prenume='d')");
 		for (String sql : sqlList) {
 			System.out.println(sql+"\n");
 			System.out.println(SELECTStatementProcessor.processQuery(sql)
