@@ -44,7 +44,7 @@ public abstract class QueryExecModule {
 			}
 			return result;
 		} catch (QueryParseException qpe) {
-			return "PARSING EXCEPTION\n" + qpe;
+			return "PARSING EXCEPTION(maybe sparql query is not valid)\n" + qpe;
 		}
 	}
 }
